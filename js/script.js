@@ -1,133 +1,212 @@
-const { jsPDF } = window.jspdf;
-
-function showDownload(blob, filename){
-    const btn = document.getElementById("downloadBtn");
-    btn.style.display = "block";
-    btn.onclick = function(){
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        link.click();
-    };
+function goTo(type) {
+    localStorage.setItem("convertType", type);
+    window.location.href = "convert.html";
 }
 
-/* IMAGE → PDF */
-function imageToPDF(){
-    const files = document.getElementById("imageInput").files;
-    if(files.length === 0) return alert("Select images");
+document.addEventListener("DOMContentLoaded", function () {
 
-    const pdf = new jsPDF();
-    let i = 0;
-    const reader = new FileReader();
+    const area = document.getElementById("dynamicArea");
+    if (!area) return;
 
-    reader.onload = function(e){
-        const img = new Image();
-        img.onload = function(){
-            if(i > 0) pdf.addPage();
-            pdf.addImage(img, 'JPEG', 10, 10, 180, 160);
-            i++;
-            if(i < files.length){
-                reader.readAsDataURL(files[i]);
-            }else{
-                const blob = pdf.output("blob");
-                showDownload(blob,"images.pdf");
-                document.getElementById("status").innerText="Done!";
-            }
+    const type = localStorage.getItem("convertType");
+
+    if (!type) {
+        alert("Please choose conversion type first.");
+        window.location.href = "index.html";
+        return;
+    }
+
+    const title = document.getElementById("title");
+    title.innerText = type.replace("-", " ").toUpperCase();
+
+    if (type === "text-pdf" || type === "text-ppt") {
+        area.innerHTML = `<textarea id="textInput" placeholder="Enter your text here..."></textarea>`;
+    }
+
+    if (type === "image-pdf" || type === "image-ppt") {
+        area.innerHTML = `
+            <input type="file" id="fileInput" multiple accept="image/*">
+            <p>Select up to 15 images</p>`;
+    }
+
+    if (type === "compress") {
+        area.innerHTML = `
+            <input type="file" id="fileInput" accept="image/*">
+            <select id="quality">
+                <option value="0.8">80% Quality</option>
+                <option value="0.6">60% Quality</option>
+                <option value="0.4">40% Quality</option>
+                <option value="0.25">25% Quality</option>
+                <option value="0.1">10% Quality</option>
+            </select>`;
+    }
+
+    if (type === "pdf-compress") {
+        area.innerHTML = `
+            <input type="file" id="fileInput" accept=".pdf">
+            <select id="quality">
+                <option value="0.9">Low Compression</option>
+                <option value="0.7">Medium</option>
+                <option value="0.5">High</option>
+                <option value="0.3">Very High</option>
+                <option value="0.2">Extreme</option>
+            </select>`;
+    }
+
+    if (type === "ppt-compress") {
+        area.innerHTML = `
+            <input type="file" id="fileInput" accept=".ppt,.pptx">
+            <select id="quality">
+                <option value="0.9">Low Compression</option>
+                <option value="0.7">Medium</option>
+                <option value="0.5">High</option>
+                <option value="0.3">Very High</option>
+                <option value="0.2">Extreme</option>
+            </select>`;
+    }
+});
+
+async function process() {
+
+    const type = localStorage.getItem("convertType");
+    const status = document.getElementById("status");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    status.innerText = "Processing...";
+    downloadBtn.style.display = "none";
+
+    /* TEXT → PDF */
+    if (type === "text-pdf") {
+        const text = document.getElementById("textInput").value;
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const lines = doc.splitTextToSize(text, 180);
+        doc.text(lines, 10, 10);
+
+        downloadBtn.onclick = () => doc.save("converted.pdf");
+        downloadBtn.style.display = "block";
+    }
+
+    /* IMAGE → PDF */
+    if (type === "image-pdf") {
+        const files = document.getElementById("fileInput").files;
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        for (let i = 0; i < files.length && i < 15; i++) {
+            const imgData = await toBase64(files[i]);
+            if (i !== 0) doc.addPage();
+            doc.addImage(imgData, "JPEG", 10, 10, 180, 160);
         }
-        img.src = e.target.result;
-    };
 
-    document.getElementById("status").innerText="Processing...";
-    reader.readAsDataURL(files[0]);
-}
+        downloadBtn.onclick = () => doc.save("images.pdf");
+        downloadBtn.style.display = "block";
+    }
 
-/* TEXT → PDF */
-function textToPDF(){
-    const text = document.getElementById("textInput").value;
-    if(!text) return alert("Enter text");
+    /* IMAGE → PPT (FIXED) */
+    if (type === "image-ppt") {
+        const files = document.getElementById("fileInput").files;
+        let pptx = new PptxGenJS();
 
-    const pdf = new jsPDF();
-    pdf.text(text, 10, 10);
-    const blob = pdf.output("blob");
-    showDownload(blob,"text.pdf");
-    document.getElementById("status").innerText="Done!";
-}
+        for (let i = 0; i < files.length && i < 15; i++) {
+            const imgData = await toBase64(files[i]);
+            let slide = pptx.addSlide();
+            slide.addImage({ data: imgData, x: 1, y: 1, w: 8, h: 4 });
+        }
 
-/* IMAGE → PPT */
-function imageToPPT(){
-    const files = document.getElementById("imageInput").files;
-    if(files.length === 0) return alert("Select images");
+        downloadBtn.onclick = async () => {
+            await pptx.writeFile("images.pptx");
+        };
 
-    document.getElementById("status").innerText="Processing...";
+        downloadBtn.style.display = "block";
+    }
 
-    let ppt = new PptxGenJS();
-    let i = 0;
-    const reader = new FileReader();
+    /* TEXT → PPT (FIXED) */
+    if (type === "text-ppt") {
+        const text = document.getElementById("textInput").value;
+        let pptx = new PptxGenJS();
 
-    reader.onload = function(e){
-        let slide = ppt.addSlide();
-        slide.addImage({data:e.target.result,x:1,y:1,w:8,h:4});
-        i++;
-        if(i < files.length){
-            reader.readAsDataURL(files[i]);
-        }else{
-            ppt.write("blob").then(blob=>{
-                showDownload(blob,"images.pptx");
-                document.getElementById("status").innerText="Done!";
+        const sections = text.split("#").filter(t => t.trim() !== "");
+
+        sections.forEach(sec => {
+            let slide = pptx.addSlide();
+            const lines = sec.trim().split("\n");
+
+            slide.addText(lines[0], {
+                x: 1,
+                y: 1,
+                w: 8,
+                h: 1,
+                fontSize: 28,
+                bold: true,
+                align: "center"
             });
-        }
-    };
 
-    reader.readAsDataURL(files[0]);
-}
-
-/* TEXT → PPT */
-function textToPPT(){
-    const text = document.getElementById("textInput").value;
-    if(!text) return alert("Enter text");
-
-    document.getElementById("status").innerText="Processing...";
-
-    let ppt = new PptxGenJS();
-    let slide = ppt.addSlide();
-    slide.addText(text,{x:1,y:1,w:8,h:5,fontSize:18});
-
-    ppt.write("blob").then(blob=>{
-        showDownload(blob,"text.pptx");
-        document.getElementById("status").innerText="Done!";
-    });
-}
-
-/* PDF Compressor */
-function compressPDF(){
-    const file = document.getElementById("pdfFile").files[0];
-    if(!file) return alert("Upload PDF");
-
-    document.getElementById("status").innerText="Processing...";
-
-    const reader = new FileReader();
-    reader.onload = function(e){
-        const blob = new Blob([e.target.result],{type:"application/pdf"});
-        showDownload(blob,"compressed.pdf");
-        document.getElementById("status").innerText="Done!";
-    };
-    reader.readAsArrayBuffer(file);
-}
-
-/* PPT Compressor */
-function compressPPT(){
-    const file = document.getElementById("pptFile").files[0];
-    if(!file) return alert("Upload PPT");
-
-    document.getElementById("status").innerText="Processing...";
-
-    const reader = new FileReader();
-    reader.onload = function(e){
-        const blob = new Blob([e.target.result],{
-            type:"application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            slide.addText(lines.slice(1).join("\n"), {
+                x: 1,
+                y: 2,
+                w: 8,
+                h: 3,
+                fontSize: 18
+            });
         });
-        showDownload(blob,"compressed.pptx");
-        document.getElementById("status").innerText="Done!";
-    };
-    reader.readAsArrayBuffer(file);
-        }
+
+        downloadBtn.onclick = async () => {
+            await pptx.writeFile("presentation.pptx");
+        };
+
+        downloadBtn.style.display = "block";
+    }
+
+    /* IMAGE COMPRESS */
+    if (type === "compress") {
+        const file = document.getElementById("fileInput").files[0];
+        const quality = parseFloat(document.getElementById("quality").value);
+
+        const img = new Image();
+        img.src = await toBase64(file);
+
+        img.onload = function () {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+
+            canvas.toBlob(function(blob) {
+                downloadBtn.onclick = () => {
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.download = "compressed.jpg";
+                    link.click();
+                };
+                downloadBtn.style.display = "block";
+            }, "image/jpeg", quality);
+        };
+    }
+
+    /* PDF & PPT COMPRESS (Browser Limited) */
+    if (type === "pdf-compress" || type === "ppt-compress") {
+        const file = document.getElementById("fileInput").files[0];
+
+        downloadBtn.onclick = () => {
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(file);
+            link.download = "compressed_" + file.name;
+            link.click();
+        };
+
+        downloadBtn.style.display = "block";
+    }
+
+    status.innerText = "Ready to download!";
+}
+
+function toBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+            }
