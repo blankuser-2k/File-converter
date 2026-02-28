@@ -1,62 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Convert</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convert</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
-
 <body>
 
 <div class="container">
+    <h1 id="title"></h1>
 
-<h1>File Converter</h1>
+    <div id="dynamicArea"></div>
 
-<h3>Image / Text Convert</h3>
+    <button id="actionBtn" onclick="process()">Process</button>
+    <button id="downloadBtn" style="display:none;">Download</button>
 
-<input type="file" id="imageInput" multiple accept="image/*">
-<textarea id="textInput" placeholder="Enter your text here..."></textarea>
-
-<button onclick="imageToPDF()">Image → PDF</button>
-<button onclick="textToPDF()">Text → PDF</button>
-<button onclick="imageToPPT()">Image → PPT</button>
-<button onclick="textToPPT()">Text → PPT</button>
-
-<hr>
-
-<h3>PDF Compressor</h3>
-<input type="file" id="pdfFile" accept=".pdf">
-<select id="pdfQuality">
-<option value="1">Low Compression</option>
-<option value="0.7">Medium</option>
-<option value="0.5">High</option>
-<option value="0.3">Very High</option>
-<option value="0.2">Extreme</option>
-</select>
-<button onclick="compressPDF()">Compress PDF</button>
-
-<h3>PPT Compressor</h3>
-<input type="file" id="pptFile" accept=".ppt,.pptx">
-<select id="pptQuality">
-<option value="1">Low Compression</option>
-<option value="0.7">Medium</option>
-<option value="0.5">High</option>
-<option value="0.3">Very High</option>
-<option value="0.2">Extreme</option>
-</select>
-<button onclick="compressPPT()">Compress PPT</button>
-
-<p id="status"></p>
-<button id="downloadBtn" style="display:none;">Download</button>
-
+    <p id="status"></p>
 </div>
 
-<!-- Libraries FIRST -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.min.js"></script>
-
-<script src="script.js"></script>
+<script src="js/script.js"></script>
 
 </body>
-    </html>
+                               </html>
